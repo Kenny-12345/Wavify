@@ -3,7 +3,7 @@ import { StyleSheet, View, ActivityIndicator, SafeAreaView, StatusBar, BackHandl
 import { WebView } from 'react-native-webview';
 
 // Replace this URL with your live deployed Vercel/Netlify URL
-const WEB_APP_URL = 'https://tangy-monkeys-jam.loca.lt'; 
+const WEB_APP_URL = 'https://wavify-tau.vercel.app'; 
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -24,14 +24,11 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0d0d0d" />
+      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
       <View style={styles.webviewContainer}>
         <WebView
           ref={webViewRef}
-          source={{ 
-            uri: WEB_APP_URL,
-            headers: { 'Bypass-Tunnel-Reminder': 'true' }
-          }}
+          source={{ uri: WEB_APP_URL }}
           style={styles.webview}
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => setLoading(false)}

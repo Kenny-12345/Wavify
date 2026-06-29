@@ -22,7 +22,7 @@ const INVIDIOUS_INSTANCES = [
  */
 export async function getTopCharts(limit = 30) {
   try {
-    const response = await axios.get(`https://itunes.apple.com/us/rss/topsongs/limit=${limit}/json`);
+    const response = await axios.get(`/api/itunes-charts?limit=${limit}`);
     const entries = response.data?.feed?.entry || [];
     
     return entries.map((entry, index) => {
@@ -67,7 +67,7 @@ export async function searchMusic(query) {
   if (!query || query.trim().length === 0) return [];
 
   try {
-    const response = await axios.get('https://itunes.apple.com/search', {
+    const response = await axios.get('/api/itunes', {
       params: {
         term: query,
         media: 'music',
