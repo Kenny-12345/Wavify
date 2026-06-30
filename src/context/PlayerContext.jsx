@@ -138,19 +138,38 @@ export function PlayerProvider({ children }) {
     }
   }, [startProgressTracking]);
 
-  // ─── Play / Pause ─────────────────────────────────────────────────────────────
+  // ─── Play/Pause ───────────────────────────────────────────────────────────────
   const togglePlay = useCallback(() => {
-    if (!currentTrack) return;
+    if (!ytPlayerRef.current || !currentTrack) return;
     if (isPlaying) {
-      ytPlayerRef.current?.pauseVideo?.();
+      ytPlayerRef.current.pauseVideo?.();
       setIsPlaying(false);
       stopProgressTracking();
     } else {
-      ytPlayerRef.current?.playVideo?.();
+      ytPlayerRef.current.playVideo?.();
       setIsPlaying(true);
       startProgressTracking();
     }
   }, [isPlaying, currentTrack, startProgressTracking, stopProgressTracking]);
+
+  // ─── Media Session API (Lock Screen & Background Audio Controls) ──────────────
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentTrack) {
+      navigator.mediaSession.metadata = new window.MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: currentTrack.album || '',
+        artwork: [
+          { src: currentTrack.thumbnail, sizes: '400x400', type: 'image/jpeg' },
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', togglePlay);
+      navigator.mediaSession.setActionHandler('pause', togglePlay);
+      
+      // We will set next/prev track handlers in a separate effect because they depend on nextTrack/prevTrack functions
+    }
+  }, [currentTrack, togglePlay]);
 
   // ─── Seek ─────────────────────────────────────────────────────────────────────
   const seekTo = useCallback((percent) => {
@@ -201,6 +220,19 @@ export function PlayerProvider({ children }) {
     setQueueIndex(prevIdx);
     playTrack(queue[prevIdx]);
   }, [queue, queueIndex, elapsed, seekTo, getPrevIndex, playTrack]);
+
+  // ─── Bind Media Session Next/Prev Handlers ────────────────────────────────────
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+      navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime && duration) {
+          seekTo((details.seekTime / duration) * 100);
+        }
+      });
+    }
+  }, [prevTrack, nextTrack, seekTo, duration]);
 
   // ─── Repeat ───────────────────────────────────────────────────────────────────
   const cycleRepeat = useCallback(() => {
