@@ -126,6 +126,7 @@ export default function HomePage() {
               name: song.artist,
               image: song.thumbnail,
               banner: song.thumbnail,
+              monthlyListeners: Math.floor(Math.random() * 50000000) + 1000000,
               genres: [song.genre],
               popularSongObjects: top100.filter(s => s.artistId === song.artistId)
             });
