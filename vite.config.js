@@ -38,6 +38,29 @@ const ytSearchPlugin = () => ({
         res.end(JSON.stringify({ error: error.message }));
       }
     });
+
+    server.middlewares.use('/api/itunes-charts', async (req, res, next) => {
+      try {
+        const urlObj = new URL(req.url, `http://${req.headers.host}`);
+        const limit = urlObj.searchParams.get('limit') || 30;
+        const country = urlObj.searchParams.get('country') || 'us';
+        const genre = urlObj.searchParams.get('genre');
+
+        let targetUrl = `https://itunes.apple.com/${country}/rss/topsongs/limit=${limit}`;
+        if (genre) targetUrl += `/genre=${genre}`;
+        targetUrl += '/json';
+
+        const response = await fetch(targetUrl);
+        const data = await response.json();
+
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.end(JSON.stringify(data));
+      } catch (error) {
+        res.statusCode = 500;
+        res.end(JSON.stringify({ error: error.message }));
+      }
+    });
   }
 });
 
