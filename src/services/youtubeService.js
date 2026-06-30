@@ -59,7 +59,20 @@ export async function getTopCharts(limit = 30, genre = null, country = 'us') {
     });
   } catch (error) {
     console.error('Failed to fetch top charts from iTunes RSS:', error);
-    return FEATURED_SONGS;
+    return [
+      {
+        id: 'error_1',
+        title: 'Error: ' + error.message,
+        artist: error.toString(),
+        albumId: 'error_album',
+        artistId: 'error_artist',
+        genre: 'Error',
+        year: 2026,
+        thumbnail: 'https://via.placeholder.com/400?text=Error',
+        plays: 0
+      },
+      ...FEATURED_SONGS.slice(0, 20)
+    ];
   }
 }
 
