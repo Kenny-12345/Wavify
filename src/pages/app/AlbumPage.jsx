@@ -1,22 +1,25 @@
 /**
  * AlbumPage.jsx
  */
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Play, Shuffle, Heart, Clock } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
 import { useLibrary } from '../../context/LibraryContext';
 import { getAlbumById, getArtistById, getSongsByAlbum, formatDuration } from '../../services/mockData';
 import TrackRow from '../../components/ui/TrackRow';
-import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 export default function AlbumPage() {
   const { id } = useParams();
+  const location = useLocation();
   const { playTrack, toggleShuffle } = usePlayer();
   const { isAlbumLiked, toggleLikeAlbum } = useLibrary();
 
-  const album = getAlbumById(id);
+  const stateAlbum = location.state?.album;
+  const mockAlbum = getAlbumById(id);
+  const album = stateAlbum || mockAlbum;
+
   if (!album) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -25,8 +28,8 @@ export default function AlbumPage() {
     );
   }
 
-  const songs = getSongsByAlbum(album.id);
-  const artist = getArtistById(album.artistId);
+  const songs = album.songObjects || getSongsByAlbum(album.id);
+  const artist = album.artist ? { id: album.artistId, name: album.artist } : getArtistById(album.artistId);
   const liked = isAlbumLiked(album.id);
   const totalDuration = songs.reduce((acc, s) => acc + s.duration, 0);
 

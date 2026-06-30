@@ -2,7 +2,7 @@
  * ArtistPage.jsx
  * Artist profile page with biography, popular songs, albums, similar artists.
  */
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Play, Heart, UserCheck, UserPlus, Share2, MoreHorizontal } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
@@ -15,10 +15,14 @@ import toast from 'react-hot-toast';
 export default function ArtistPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { playTrack } = usePlayer();
   const { isFollowing, toggleFollowArtist, isArtistLiked, toggleLikeArtist } = useLibrary();
 
-  const artist = getArtistById(id);
+  const stateArtist = location.state?.artist;
+  const mockArtist = getArtistById(id);
+  const artist = stateArtist || mockArtist;
+
   if (!artist) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -27,7 +31,7 @@ export default function ArtistPage() {
     );
   }
 
-  const songs = getSongsByArtist(artist.id);
+  const songs = artist.popularSongObjects || getSongsByArtist(artist.id);
   const albums = ALBUMS.filter(a => a.artistId === artist.id);
   const following = isFollowing(artist.id);
   const liked = isArtistLiked(artist.id);

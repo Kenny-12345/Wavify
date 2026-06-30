@@ -18,11 +18,16 @@ const INVIDIOUS_INSTANCES = [
 /**
  * Fetches the current top trending songs globally from iTunes RSS feed.
  * @param {number} limit
+ * @param {string} genre (iTunes Genre ID)
+ * @param {string} country (2-letter country code)
  * @returns {Promise<Array>} List of songs
  */
-export async function getTopCharts(limit = 30) {
+export async function getTopCharts(limit = 30, genre = null, country = 'us') {
   try {
-    const response = await axios.get(`/api/itunes-charts?limit=${limit}`);
+    let url = `/api/itunes-charts?limit=${limit}&country=${country}`;
+    if (genre) url += `&genre=${genre}`;
+    
+    const response = await axios.get(url);
     const entries = response.data?.feed?.entry || [];
     
     return entries.map((entry, index) => {
@@ -30,7 +35,7 @@ export async function getTopCharts(limit = 30) {
       const title = entry['im:name']?.label || 'Unknown Title';
       const artist = entry['im:artist']?.label || 'Unknown Artist';
       const album = entry['im:collection']?.['im:name']?.label || 'Single';
-      const genre = entry['category']?.attributes?.label || 'Pop';
+      const songGenre = entry['category']?.attributes?.label || 'Pop';
       const releaseDate = entry['im:releaseDate']?.label;
       const year = releaseDate ? new Date(releaseDate).getFullYear() : new Date().getFullYear();
       
@@ -45,7 +50,7 @@ export async function getTopCharts(limit = 30) {
         album,
         albumId: `itunes_album_${trackId}`,
         duration: 210, 
-        genre,
+        genre: songGenre,
         year,
         thumbnail: artwork || 'https://via.placeholder.com/400?text=♪',
         videoId: null,
@@ -55,6 +60,59 @@ export async function getTopCharts(limit = 30) {
   } catch (error) {
     console.error('Failed to fetch top charts from iTunes RSS:', error);
     return FEATURED_SONGS;
+  }
+}
+
+/**
+ * Dynamically fetches several iTunes charts and creates realistic playlists.
+ */
+export async function getDynamicPlaylists() {
+  try {
+    // 14 = Pop, 18 = Hip-Hop, 17 = Dance/Electronic, 16 = R&B
+    const [global, pop, hiphop, dance] = await Promise.all([
+      getTopCharts(50),
+      getTopCharts(30, 14),
+      getTopCharts(30, 18),
+      getTopCharts(30, 17)
+    ]);
+
+    return [
+      {
+        id: 'dyn_global50',
+        name: 'Global Top 50',
+        description: 'The most played tracks right now across the globe.',
+        cover: global[0]?.thumbnail || 'https://via.placeholder.com/400?text=Global',
+        songObjects: global, // Passing objects directly so we don't need getSongById
+        isOfficial: true,
+      },
+      {
+        id: 'dyn_pop',
+        name: 'Pop Essentials',
+        description: 'The biggest pop hits playing right now.',
+        cover: pop[0]?.thumbnail || 'https://via.placeholder.com/400?text=Pop',
+        songObjects: pop,
+        isOfficial: true,
+      },
+      {
+        id: 'dyn_hiphop',
+        name: 'Trending Hip-Hop',
+        description: 'The hottest hip-hop and rap tracks.',
+        cover: hiphop[0]?.thumbnail || 'https://via.placeholder.com/400?text=HipHop',
+        songObjects: hiphop,
+        isOfficial: true,
+      },
+      {
+        id: 'dyn_dance',
+        name: 'Dance & Electronic',
+        description: 'High-energy electronic beats.',
+        cover: dance[0]?.thumbnail || 'https://via.placeholder.com/400?text=Dance',
+        songObjects: dance,
+        isOfficial: true,
+      }
+    ];
+  } catch (e) {
+    console.error('Failed to generate dynamic playlists:', e);
+    return [];
   }
 }
 

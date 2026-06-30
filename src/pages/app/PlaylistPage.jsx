@@ -3,7 +3,7 @@
  * User and curated playlist page with full management.
  */
 import { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Shuffle, Heart, MoreHorizontal, Pencil, Trash2, Copy, Pin, Search, Clock } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
@@ -28,10 +28,13 @@ export default function PlaylistPage() {
   const [searchInPlaylist, setSearchInPlaylist] = useState('');
   const [sortBy, setSortBy] = useState('default'); // 'default' | 'title' | 'artist' | 'duration'
 
-  // Find playlist — check user playlists first, then curated
+  const location = useLocation();
+  
+  // Find playlist — check user playlists first, then state, then mock curated
   const userPlaylist = playlists.find(p => p.id === id);
+  const statePlaylist = location.state?.playlist;
   const curatedPlaylist = CURATED_PLAYLISTS.find(p => p.id === id);
-  const playlist = userPlaylist || curatedPlaylist;
+  const playlist = userPlaylist || statePlaylist || curatedPlaylist;
 
   if (!playlist) {
     return (
@@ -45,9 +48,10 @@ export default function PlaylistPage() {
   const liked = isPlaylistLiked(playlist.id);
 
   // Get all songs in playlist
-  const allSongs = useMemo(() =>
-    playlist.songIds.map(songId => getSongById(songId)).filter(Boolean),
-  [playlist.songIds]);
+  const allSongs = useMemo(() => {
+    if (playlist.songObjects) return playlist.songObjects;
+    return (playlist.songIds || []).map(songId => getSongById(songId)).filter(Boolean);
+  }, [playlist]);
 
   // Filter + sort
   const filteredSongs = useMemo(() => {

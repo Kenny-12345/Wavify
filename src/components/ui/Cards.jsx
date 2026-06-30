@@ -35,13 +35,13 @@ export function AlbumCard({ album }) {
 
   const handlePlay = (e) => {
     e.preventDefault();
-    const songs = getSongsByAlbum(album.id);
+    const songs = album.songObjects || getSongsByAlbum(album.id);
     if (songs.length) playTrack(songs[0], songs);
     else toast('No songs available for this album');
   };
 
   return (
-    <Link to={`/album/${album.id}`} className="block flex-shrink-0">
+    <Link to={`/album/${album.id}`} state={{ album }} className="block flex-shrink-0">
       <motion.div
         whileHover={{ y: -4 }}
         className="glass-card rounded-xl p-3 w-44 cursor-pointer group"
@@ -70,13 +70,13 @@ export function ArtistCard({ artist }) {
 
   const handlePlay = (e) => {
     e.preventDefault();
-    const songs = getSongsByArtist(artist.id);
+    const songs = artist.popularSongObjects || getSongsByArtist(artist.id);
     if (songs.length) playTrack(songs[0], songs);
     else toast('No songs available for this artist');
   };
 
   return (
-    <Link to={`/artist/${artist.id}`} className="block flex-shrink-0">
+    <Link to={`/artist/${artist.id}`} state={{ artist }} className="block flex-shrink-0">
       <motion.div
         whileHover={{ y: -4 }}
         className="glass-card rounded-xl p-3 w-44 cursor-pointer group text-center"
@@ -103,13 +103,13 @@ export function PlaylistCard({ playlist }) {
 
   const handlePlay = (e) => {
     e.preventDefault();
-    const songs = playlist.songIds.map(id => FEATURED_SONGS.find(s => s.id === id)).filter(Boolean);
+    const songs = playlist.songObjects || (playlist.songIds || []).map(id => FEATURED_SONGS.find(s => s.id === id)).filter(Boolean);
     if (songs.length) playTrack(songs[0], songs);
     else toast('No songs in this playlist');
   };
 
   return (
-    <Link to={`/playlist/${playlist.id}`} className="block flex-shrink-0">
+    <Link to={`/playlist/${playlist.id}`} state={{ playlist }} className="block flex-shrink-0">
       <motion.div
         whileHover={{ y: -4 }}
         className="glass-card rounded-xl p-3 w-44 cursor-pointer group"
@@ -124,7 +124,7 @@ export function PlaylistCard({ playlist }) {
           <PlayOverlay onClick={handlePlay} />
         </div>
         <p className="text-sm font-semibold text-primary truncate">{playlist.name}</p>
-        <p className="text-xs text-muted truncate">{playlist.songIds.length} songs</p>
+        <p className="text-xs text-muted truncate">{(playlist.songObjects || playlist.songIds || []).length} songs</p>
       </motion.div>
     </Link>
   );

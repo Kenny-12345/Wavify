@@ -8,10 +8,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useLibrary } from '../../context/LibraryContext';
 import { usePlayer } from '../../context/PlayerContext';
 import {
-  FEATURED_SONGS, ARTISTS, ALBUMS, CURATED_PLAYLISTS, GENRES, MOOD_PLAYLISTS,
-  getSongById, getArtistById,
+  GENRES,
+  getSongById,
 } from '../../services/mockData';
-import { getTopCharts } from '../../services/youtubeService';
+import { getTopCharts, getDynamicPlaylists } from '../../services/youtubeService';
 import SectionRow from '../../components/ui/SectionRow';
 import { TrackCard, AlbumCard, ArtistCard, PlaylistCard, GenreCard } from '../../components/ui/Cards';
 import TrackRow from '../../components/ui/TrackRow';
@@ -89,11 +89,58 @@ export default function HomePage() {
   const { user } = useAuth();
   const { recentlyPlayed, likedSongs, followedArtists, getMostPlayed } = useLibrary();
   const [charts, setCharts] = useState([]);
+  const [dynamicPlaylists, setDynamicPlaylists] = useState([]);
+  const [dynamicAlbums, setDynamicAlbums] = useState([]);
+  const [dynamicArtists, setDynamicArtists] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    getTopCharts(40).then(data => {
-      setCharts(data);
-    });
+    async function loadData() {
+      try {
+        const top100 = await getTopCharts(100);
+        setCharts(top100);
+        
+        const playlists = await getDynamicPlaylists();
+        setDynamicPlaylists(playlists);
+
+        // Derive unique albums from top 100
+        const albumsMap = new Map();
+        const artistsMap = new Map();
+        
+        top100.forEach(song => {
+          if (!albumsMap.has(song.albumId)) {
+            albumsMap.set(song.albumId, {
+              id: song.albumId,
+              title: song.album,
+              artist: song.artist,
+              artistId: song.artistId,
+              year: song.year,
+              genre: song.genre,
+              cover: song.thumbnail,
+              songObjects: top100.filter(s => s.albumId === song.albumId)
+            });
+          }
+          if (!artistsMap.has(song.artistId)) {
+            artistsMap.set(song.artistId, {
+              id: song.artistId,
+              name: song.artist,
+              image: song.thumbnail,
+              banner: song.thumbnail,
+              genres: [song.genre],
+              popularSongObjects: top100.filter(s => s.artistId === song.artistId)
+            });
+          }
+        });
+        
+        setDynamicAlbums(Array.from(albumsMap.values()));
+        setDynamicArtists(Array.from(artistsMap.values()));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
   }, []);
 
   const greeting = useMemo(() => {
@@ -116,20 +163,29 @@ export default function HomePage() {
 
   // Personalized: followed artists' songs
   const followedArtistSongs = useMemo(() => {
-    if (!followedArtists.length) return [];
-    return FEATURED_SONGS.filter(s => followedArtists.includes(s.artistId));
-  }, [followedArtists]);
+    if (!followedArtists.length || !charts.length) return [];
+    return charts.filter(s => followedArtists.includes(s.artistId));
+  }, [followedArtists, charts]);
 
   // Personalized: liked songs
   const likedSongObjects = useMemo(() =>
     likedSongs.slice(0, 10).map(getSongById).filter(Boolean),
   [likedSongs]);
 
-  // Use top chart song for featured hero, fallback to mock blinding lights
-  const featuredSong = charts[0] || FEATURED_SONGS[0];
-  const quickAccessSongs = charts.length ? charts.slice(1, 7) : FEATURED_SONGS.slice(0, 6);
-  const topChartRow = charts.length ? charts.slice(0, 12) : FEATURED_SONGS;
-  const newReleasesRow = charts.length ? charts.slice(12, 24) : FEATURED_SONGS.slice(4, 12);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full pt-32 pb-8 page-wrapper text-white/50">
+        Loading live charts...
+      </div>
+    );
+  }
+
+  // Use top chart song for featured hero
+  const featuredSong = charts[0];
+  const quickAccessSongs = charts.slice(1, 7);
+  const topChartRow = charts.slice(0, 12);
+  const newReleasesRow = charts.filter(s => s.year === new Date().getFullYear()).slice(0, 12);
+  if (newReleasesRow.length < 6) newReleasesRow.push(...charts.slice(12, 24));
 
   return (
     <div className="pb-8 page-wrapper">
@@ -168,11 +224,13 @@ export default function HomePage() {
       </SectionRow>
 
       {/* Popular Playlists */}
-      <SectionRow title="🔥 Popular Playlists" seeAllLink="/library">
-        {CURATED_PLAYLISTS.map(playlist => (
-          <PlaylistCard key={playlist.id} playlist={playlist} />
-        ))}
-      </SectionRow>
+      {dynamicPlaylists.length > 0 && (
+        <SectionRow title="🔥 Trending Playlists" seeAllLink="/library">
+          {dynamicPlaylists.map(playlist => (
+            <PlaylistCard key={playlist.id} playlist={playlist} />
+          ))}
+        </SectionRow>
+      )}
 
       {/* Top Songs — track list style */}
       <section className="px-6 mb-8">
@@ -180,43 +238,29 @@ export default function HomePage() {
           <h2 className="text-xl font-bold text-primary">⭐ Trending Now</h2>
         </div>
         <div className="space-y-1">
-          {(charts.length ? charts.slice(0, 8) : FEATURED_SONGS.slice(0, 8)).map((song, i) => (
-            <TrackRow key={song.id} track={song} index={i} queue={charts.length ? charts.slice(0, 8) : FEATURED_SONGS.slice(0, 8)} />
+          {charts.slice(0, 8).map((song, i) => (
+            <TrackRow key={song.id} track={song} index={i} queue={charts.slice(0, 8)} />
           ))}
         </div>
       </section>
 
       {/* Recommended Albums */}
-      <SectionRow title="💿 Recommended Albums" seeAllLink="/library">
-        {ALBUMS.slice(0, 8).map(album => (
-          <AlbumCard key={album.id} album={album} />
-        ))}
-      </SectionRow>
+      {dynamicAlbums.length > 0 && (
+        <SectionRow title="💿 Trending Albums" seeAllLink="/library">
+          {dynamicAlbums.slice(0, 8).map(album => (
+            <AlbumCard key={album.id} album={album} />
+          ))}
+        </SectionRow>
+      )}
 
       {/* Featured Artists */}
-      <SectionRow title="🎤 Popular Artists" seeAllLink="/search">
-        {ARTISTS.slice(0, 8).map(artist => (
-          <ArtistCard key={artist.id} artist={artist} />
-        ))}
-      </SectionRow>
-
-      {/* Mood Playlists */}
-      <SectionRow title="🎭 Mood Playlists" seeAllLink="/library">
-        {MOOD_PLAYLISTS.map(mood => {
-          const moodSongs = mood.songIds.map(getSongById).filter(Boolean);
-          return (
-            <PlaylistCard
-              key={mood.id}
-              playlist={{
-                id: mood.id,
-                name: `${mood.emoji} ${mood.name}`,
-                cover: moodSongs[0]?.thumbnail || null,
-                songIds: mood.songIds,
-              }}
-            />
-          );
-        })}
-      </SectionRow>
+      {dynamicArtists.length > 0 && (
+        <SectionRow title="🎤 Popular Artists" seeAllLink="/search">
+          {dynamicArtists.slice(0, 8).map(artist => (
+            <ArtistCard key={artist.id} artist={artist} />
+          ))}
+        </SectionRow>
+      )}
 
       {/* Genres */}
       <SectionRow title="🎸 Browse Genres" seeAllLink="/search">
@@ -254,16 +298,16 @@ export default function HomePage() {
 
       {/* Daily Mix */}
       <SectionRow title="🎲 Daily Mix" seeAllLink="/library">
-        {[...FEATURED_SONGS].sort(() => Math.random() - 0.5).slice(0, 8).map(song => (
-          <TrackCard key={song.id} track={song} queue={FEATURED_SONGS} />
+        {[...charts].sort(() => Math.random() - 0.5).slice(0, 8).map(song => (
+          <TrackCard key={song.id} track={song} queue={charts} />
         ))}
       </SectionRow>
 
       {/* Because You Listened To */}
-      {recentSongs.length > 0 && (
+      {recentSongs.length > 0 && charts.length > 0 && (
         <SectionRow title={`💡 Because You Listened To ${recentSongs[0]?.artist}`}>
-          {FEATURED_SONGS.filter(s => s.genre === recentSongs[0]?.genre).slice(0, 8).map(song => (
-            <TrackCard key={song.id} track={song} queue={FEATURED_SONGS} />
+          {charts.filter(s => s.genre === recentSongs[0]?.genre || s.artist === recentSongs[0]?.artist).slice(0, 8).map(song => (
+            <TrackCard key={song.id} track={song} queue={charts} />
           ))}
         </SectionRow>
       )}

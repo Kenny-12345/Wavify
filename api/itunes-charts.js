@@ -1,8 +1,13 @@
 export default async function handler(req, res) {
-  const { limit } = req.query;
+  const { limit, country, genre } = req.query;
 
   try {
-    const targetUrl = `https://itunes.apple.com/us/rss/topsongs/limit=${limit || 30}/json`;
+    const c = country || 'us';
+    let targetUrl = `https://itunes.apple.com/${c}/rss/topsongs/limit=${limit || 30}`;
+    if (genre) {
+      targetUrl += `/genre=${genre}`;
+    }
+    targetUrl += '/json';
     
     const response = await fetch(targetUrl);
     const data = await response.json();
