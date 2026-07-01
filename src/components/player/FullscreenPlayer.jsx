@@ -53,7 +53,7 @@ export default function FullscreenPlayer() {
       exit={{ y: '100%' }}
       transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       className="fixed inset-0 z-50 flex flex-col overflow-hidden"
-      style={{ background: 'var(--bg-primary)' }}
+      style={{ background: 'rgba(10, 10, 10, 0.98)', backdropFilter: 'blur(20px)' }}
     >
       {/* Dynamic background */}
       <div className="absolute inset-0 overflow-hidden">
