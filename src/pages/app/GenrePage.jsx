@@ -2,9 +2,11 @@
  * GenrePage.jsx
  */
 import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play } from 'lucide-react';
-import { GENRES, FEATURED_SONGS, getSongsByGenre } from '../../services/mockData';
+import { GENRES } from '../../services/mockData';
+import { searchMusic } from '../../services/youtubeService';
 import { usePlayer } from '../../context/PlayerContext';
 import TrackRow from '../../components/ui/TrackRow';
 import toast from 'react-hot-toast';
@@ -12,12 +14,29 @@ import toast from 'react-hot-toast';
 export default function GenrePage() {
   const { id } = useParams();
   const { playTrack } = usePlayer();
+  const [songs, setSongs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const genre = GENRES.find(g => g.id === id);
-  if (!genre) return <div className="flex items-center justify-center h-64"><p className="text-muted">Genre not found</p></div>;
 
-  const songs = getSongsByGenre(genre.name);
-  const allGenreSongs = songs.length ? songs : FEATURED_SONGS.slice(0, 10);
+  useEffect(() => {
+    async function loadGenreSongs() {
+      if (!genre) return;
+      setIsLoading(true);
+      try {
+        const results = await searchMusic(genre.searchTerm);
+        setSongs(results);
+      } catch (e) {
+        console.error(e);
+        toast.error('Failed to load genre');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadGenreSongs();
+  }, [genre]);
+
+  if (!genre) return <div className="flex items-center justify-center h-64"><p className="text-muted">Genre not found</p></div>;
 
   return (
     <div className="page-wrapper">
@@ -34,7 +53,7 @@ export default function GenrePage() {
       <div className="flex items-center gap-4 px-6 py-6">
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={() => allGenreSongs.length ? playTrack(allGenreSongs[0], allGenreSongs) : toast('No songs')}
+          onClick={() => songs.length ? playTrack(songs[0], songs) : toast('No songs available')}
           className="w-14 h-14 rounded-full flex items-center justify-center text-black shadow-glow hover:scale-105 transition-all"
           style={{ background: 'var(--accent)' }}
         >
@@ -44,12 +63,16 @@ export default function GenrePage() {
 
       {/* Track list */}
       <div className="px-6 pb-8">
-        <h2 className="text-xl font-bold text-primary mb-4">Top Songs</h2>
-        <div className="space-y-1">
-          {allGenreSongs.map((song, i) => (
-            <TrackRow key={song.id} track={song} index={i} queue={allGenreSongs} />
-          ))}
-        </div>
+        <h2 className="text-xl font-bold text-primary mb-4">Top Songs in {genre.name}</h2>
+        {isLoading ? (
+          <div className="text-white/50 py-8">Loading {genre.name} hits...</div>
+        ) : (
+          <div className="space-y-1">
+            {songs.map((song, i) => (
+              <TrackRow key={song.id} track={song} index={i} queue={songs} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
